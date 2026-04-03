@@ -157,18 +157,11 @@ for tab, comm in zip(comm_tabs, COMM_CONFIG):
         df["Short Add"]   = -short_chg.clip(lower=0)
         df["Short Cover"] = -short_chg.clip(upper=0)
 
-        # Weekly Rollex aligned to COT
-        rollex_w = (
-            rollex_daily.set_index("Date")["Rollex"]
-                        .resample("W-FRI").last()
-                        .reset_index()
-        )
-        rollex_w.columns = ["Date", "Rollex"]
-
+        # Rollex on COT date — direct lookup, no resampling
         df = pd.merge_asof(
             df.sort_values("Date"),
-            rollex_w.sort_values("Date"),
-            on="Date", direction="nearest", tolerance=pd.Timedelta("7D"),
+            rollex_daily.sort_values("Date"),
+            on="Date", direction="nearest", tolerance=pd.Timedelta("1D"),
         )
 
         # Date filter
