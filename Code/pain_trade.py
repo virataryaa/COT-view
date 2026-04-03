@@ -4,6 +4,7 @@ CIT: KC / CC / SB / CT  |  Disaggregated: LRC / LCC
 Run: streamlit run pain_trade.py
 """
 
+import functools
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
@@ -96,6 +97,17 @@ st.markdown(
 )
 st.markdown("<hr>", unsafe_allow_html=True)
 
+# ── Date range sync helpers ───────────────────────────────────────────────────
+def _slider_to_cal(comm):
+    v = st.session_state.get(f"sl_{comm}")
+    if v:
+        st.session_state[f"cal_{comm}"] = list(v)
+
+def _cal_to_slider(comm):
+    dates = st.session_state.get(f"cal_{comm}")
+    if isinstance(dates, (list, tuple)) and len(dates) == 2:
+        st.session_state[f"sl_{comm}"] = (dates[0], dates[1])
+
 # ── Tabs — one per commodity ──────────────────────────────────────────────────
 tab_labels = [COMM_CONFIG[c]["name"] for c in COMM_CONFIG]
 comm_tabs  = st.tabs(tab_labels)
@@ -129,11 +141,37 @@ for tab, comm in zip(comm_tabs, COMM_CONFIG):
             min_d         = df_comm["Date"].min().date()
             max_d         = max(df_comm["Date"].max().date(), rollex_daily["Date"].max().date())
             default_start = (df_comm["Date"].max() - pd.DateOffset(years=2)).date()
-            date_range    = st.slider(
+
+            st.slider(
                 "Date range", min_value=min_d, max_value=max_d,
                 value=(default_start, max_d), format="YYYY-MM-DD",
-                key=f"slider_{comm}",
+                key=f"sl_{comm}",
+                on_change=functools.partial(_slider_to_cal, comm),
             )
+
+            _ca, _cb = st.columns(2)
+            _cur = st.session_state.get(f"sl_{comm}", (default_start, max_d))
+            with _ca:
+                st.date_input("From", value=_cur[0], min_value=min_d, max_value=max_d,
+                              key=f"cal_s_{comm}", label_visibility="collapsed",
+                              on_change=lambda c=comm: (
+                                  st.session_state.update({f"sl_{c}": (
+                                      st.session_state[f"cal_s_{c}"],
+                                      st.session_state.get(f"sl_{c}", (default_start, max_d))[1]
+                                  )})
+                              ))
+            with _cb:
+                st.date_input("To", value=_cur[1], min_value=min_d, max_value=max_d,
+                              key=f"cal_e_{comm}", label_visibility="collapsed",
+                              on_change=lambda c=comm: (
+                                  st.session_state.update({f"sl_{c}": (
+                                      st.session_state.get(f"sl_{c}", (default_start, max_d))[0],
+                                      st.session_state[f"cal_e_{c}"]
+                                  )})
+                              ))
+
+            _dr      = st.session_state.get(f"sl_{comm}", (default_start, max_d))
+            date_range = (_dr[0], _dr[1])
 
         st.markdown("<hr>", unsafe_allow_html=True)
 
