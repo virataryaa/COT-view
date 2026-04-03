@@ -124,54 +124,60 @@ for tab, comm in zip(comm_tabs, COMM_CONFIG):
             st.warning(f"No COT data found for {comm}.")
             continue
 
-        # ── Controls ──────────────────────────────────────────────────────────
-        ctrl1, ctrl2 = st.columns([2, 5])
+        # ── Controls (collapsible) ────────────────────────────────────────────
+        min_d         = df_comm["Date"].min().date()
+        max_d         = max(df_comm["Date"].max().date(), rollex_daily["Date"].max().date())
+        default_start = (df_comm["Date"].max() - pd.DateOffset(years=2)).date()
 
-        with ctrl1:
-            third_label = cfg["third_leg"]
-            incl = st.radio(
-                f"Include {third_label} in spec legs?",
-                [f"Yes — Spec + Non Rep + {third_label}",
-                 "No — Spec + Non Rep only"],
-                index=0, horizontal=False, key=f"radio_{comm}",
-            )
-            use_third = incl.startswith("Yes")
+        _dr       = st.session_state.get(f"sl_{comm}", (default_start, max_d))
+        third_label = cfg["third_leg"]
+        _incl_cur = st.session_state.get(f"radio_{comm}", f"Yes — Spec + Non Rep + {third_label}")
+        _dr_str   = f"{_dr[0].strftime('%d %b %Y')} → {_dr[1].strftime('%d %b %Y')}"
 
-        with ctrl2:
-            min_d         = df_comm["Date"].min().date()
-            max_d         = max(df_comm["Date"].max().date(), rollex_daily["Date"].max().date())
-            default_start = (df_comm["Date"].max() - pd.DateOffset(years=2)).date()
+        with st.expander(f"Controls · {_dr_str} · {_incl_cur.split('—')[1].strip()}", expanded=False):
+            ctrl1, ctrl2 = st.columns([2, 5])
 
-            st.slider(
-                "Date range", min_value=min_d, max_value=max_d,
-                value=(default_start, max_d), format="YYYY-MM-DD",
-                key=f"sl_{comm}",
-                on_change=functools.partial(_slider_to_cal, comm),
-            )
+            with ctrl1:
+                incl = st.radio(
+                    f"Include {third_label} in spec legs?",
+                    [f"Yes — Spec + Non Rep + {third_label}",
+                     "No — Spec + Non Rep only"],
+                    index=0, horizontal=False, key=f"radio_{comm}",
+                )
+                use_third = incl.startswith("Yes")
 
-            _ca, _cb = st.columns(2)
-            _cur = st.session_state.get(f"sl_{comm}", (default_start, max_d))
-            with _ca:
-                st.date_input("From", value=_cur[0], min_value=min_d, max_value=max_d,
-                              key=f"cal_s_{comm}", label_visibility="collapsed",
-                              on_change=lambda c=comm: (
-                                  st.session_state.update({f"sl_{c}": (
-                                      st.session_state[f"cal_s_{c}"],
-                                      st.session_state.get(f"sl_{c}", (default_start, max_d))[1]
-                                  )})
-                              ))
-            with _cb:
-                st.date_input("To", value=_cur[1], min_value=min_d, max_value=max_d,
-                              key=f"cal_e_{comm}", label_visibility="collapsed",
-                              on_change=lambda c=comm: (
-                                  st.session_state.update({f"sl_{c}": (
-                                      st.session_state.get(f"sl_{c}", (default_start, max_d))[0],
-                                      st.session_state[f"cal_e_{c}"]
-                                  )})
-                              ))
+            with ctrl2:
+                st.slider(
+                    "Date range", min_value=min_d, max_value=max_d,
+                    value=(default_start, max_d), format="YYYY-MM-DD",
+                    key=f"sl_{comm}",
+                    on_change=functools.partial(_slider_to_cal, comm),
+                )
 
-            _dr      = st.session_state.get(f"sl_{comm}", (default_start, max_d))
-            date_range = (_dr[0], _dr[1])
+                _ca, _cb = st.columns(2)
+                _cur = st.session_state.get(f"sl_{comm}", (default_start, max_d))
+                with _ca:
+                    st.date_input("From", value=_cur[0], min_value=min_d, max_value=max_d,
+                                  key=f"cal_s_{comm}", label_visibility="collapsed",
+                                  on_change=lambda c=comm: (
+                                      st.session_state.update({f"sl_{c}": (
+                                          st.session_state[f"cal_s_{c}"],
+                                          st.session_state.get(f"sl_{c}", (default_start, max_d))[1]
+                                      )})
+                                  ))
+                with _cb:
+                    st.date_input("To", value=_cur[1], min_value=min_d, max_value=max_d,
+                                  key=f"cal_e_{comm}", label_visibility="collapsed",
+                                  on_change=lambda c=comm: (
+                                      st.session_state.update({f"sl_{c}": (
+                                          st.session_state.get(f"sl_{c}", (default_start, max_d))[0],
+                                          st.session_state[f"cal_e_{c}"]
+                                      )})
+                                  ))
+
+        use_third  = st.session_state.get(f"radio_{comm}", f"Yes — Spec + Non Rep + {third_label}").startswith("Yes")
+        _dr        = st.session_state.get(f"sl_{comm}", (default_start, max_d))
+        date_range = (_dr[0], _dr[1])
 
         st.markdown("<hr>", unsafe_allow_html=True)
 
