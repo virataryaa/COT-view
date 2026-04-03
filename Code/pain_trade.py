@@ -46,24 +46,24 @@ def lbl(text):
 _BASE = Path(__file__).parent.parent / "Database"
 
 COMM_CONFIG = {
-    "KC":  {"name": "KC — Arabica Coffee",  "cot": "cit",    "color": "#0a2463",
+    "KC":  {"name": "Arabica",      "cot": "cit",    "color": "#0a2463",
             "rollex": _BASE / "rollex_KC.parquet",  "third_leg": "Index",
             "long3": "Index Long", "short3": "Index Short"},
-    "CC":  {"name": "CC — Cocoa (ICE)",      "cot": "cit",    "color": "#e8a020",
-            "rollex": _BASE / "rollex_CC.parquet",  "third_leg": "Index",
-            "long3": "Index Long", "short3": "Index Short"},
-    "SB":  {"name": "SB — Sugar #11",        "cot": "cit",    "color": "#1a6b1a",
-            "rollex": _BASE / "rollex_SB.parquet",  "third_leg": "Index",
-            "long3": "Index Long", "short3": "Index Short"},
-    "CT":  {"name": "CT — Cotton",           "cot": "cit",    "color": "#7b2d8b",
-            "rollex": _BASE / "rollex_CT.parquet",  "third_leg": "Index",
-            "long3": "Index Long", "short3": "Index Short"},
-    "LRC": {"name": "LRC — Robusta (LIFFE)", "cot": "disagg", "color": "#8b1a00",
+    "LRC": {"name": "Robusta",      "cot": "disagg", "color": "#8b1a00",
             "rollex": _BASE / "rollex_LRC.parquet", "third_leg": "Other Rep.",
             "long3": "Other Long", "short3": "Other Short"},
-    "LCC": {"name": "LCC — Cocoa (LIFFE)",   "cot": "disagg", "color": "#4a7fb5",
+    "CC":  {"name": "NYC Cocoa",    "cot": "cit",    "color": "#e8a020",
+            "rollex": _BASE / "rollex_CC.parquet",  "third_leg": "Index",
+            "long3": "Index Long", "short3": "Index Short"},
+    "LCC": {"name": "London Cocoa", "cot": "disagg", "color": "#4a7fb5",
             "rollex": _BASE / "rollex_LCC.parquet", "third_leg": "Other Rep.",
             "long3": "Other Long", "short3": "Other Short"},
+    "SB":  {"name": "Sugar",        "cot": "cit",    "color": "#1a6b1a",
+            "rollex": _BASE / "rollex_SB.parquet",  "third_leg": "Index",
+            "long3": "Index Long", "short3": "Index Short"},
+    "CT":  {"name": "Cotton",       "cot": "cit",    "color": "#7b2d8b",
+            "rollex": _BASE / "rollex_CT.parquet",  "third_leg": "Index",
+            "long3": "Index Long", "short3": "Index Short"},
 }
 
 CIT_FILE    = _BASE / "cot_cit.parquet"
@@ -91,9 +91,7 @@ cot_cit, cot_disagg = load_cot()
 st.markdown(
     "<h2 style='font-family:\"Playfair Display\",Georgia,serif;color:#0a2463;"
     "font-weight:400;letter-spacing:-.01em;margin-bottom:2px'>"
-    "Pain Trade Monitor"
-    "<span style='font-size:1rem;font-weight:400;color:#6e6e73;margin-left:12px'>"
-    "KC · CC · SB · CT · LRC · LCC</span></h2>",
+    "Pain Trade Monitor</h2>",
     unsafe_allow_html=True,
 )
 st.markdown("<hr>", unsafe_allow_html=True)
