@@ -43,35 +43,34 @@ def lbl(text):
             f"margin-bottom:8px'><span style='font-size:.78rem;font-weight:500;"
             f"letter-spacing:.07em;text-transform:uppercase;color:#dde4f0'>{text}</span></div>")
 
+# ── Rollex utils (Master Database) ───────────────────────────────────────────
+import sys as _sys
+_sys.path.append(r"C:\Users\virat.arya\ETG\SoftsDatabase - Documents\Database\Hardmine\Non Fundamental\Master Database\Rollex")
+from rollex_utils import load_rollex as _rx_load
+
 # ── Commodity config ──────────────────────────────────────────────────────────
-_BASE = Path(__file__).parent.parent / "Database"
+_BASE = Path(__file__).parent.parent / "Database"  # COT parquets only
 
 COMM_CONFIG = {
     "KC":  {"name": "Arabica",      "cot": "cit",    "color": "#0a2463",
-            "rollex": _BASE / "rollex_KC.parquet",  "third_leg": "Index",
-            "long3": "Index Long", "short3": "Index Short"},
+            "third_leg": "Index",      "long3": "Index Long", "short3": "Index Short"},
     "LRC": {"name": "Robusta",      "cot": "disagg", "color": "#8b1a00",
-            "rollex": _BASE / "rollex_LRC.parquet", "third_leg": "Other Rep.",
-            "long3": "Other Long", "short3": "Other Short"},
+            "third_leg": "Other Rep.", "long3": "Other Long", "short3": "Other Short"},
     "CC":  {"name": "NYC Cocoa",    "cot": "cit",    "color": "#e8a020",
-            "rollex": _BASE / "rollex_CC.parquet",  "third_leg": "Index",
-            "long3": "Index Long", "short3": "Index Short"},
+            "third_leg": "Index",      "long3": "Index Long", "short3": "Index Short"},
     "LCC": {"name": "London Cocoa", "cot": "disagg", "color": "#4a7fb5",
-            "rollex": _BASE / "rollex_LCC.parquet", "third_leg": "Other Rep.",
-            "long3": "Other Long", "short3": "Other Short"},
+            "third_leg": "Other Rep.", "long3": "Other Long", "short3": "Other Short"},
     "SB":  {"name": "Sugar",        "cot": "cit",    "color": "#1a6b1a",
-            "rollex": _BASE / "rollex_SB.parquet",  "third_leg": "Index",
-            "long3": "Index Long", "short3": "Index Short"},
+            "third_leg": "Index",      "long3": "Index Long", "short3": "Index Short"},
     "CT":  {"name": "Cotton",       "cot": "cit",    "color": "#7b2d8b",
-            "rollex": _BASE / "rollex_CT.parquet",  "third_leg": "Index",
-            "long3": "Index Long", "short3": "Index Short"},
+            "third_leg": "Index",      "long3": "Index Long", "short3": "Index Short"},
 }
 
 CIT_FILE    = _BASE / "cot_cit.parquet"
 DISAGG_FILE = _BASE / "cot_disagg.parquet"
 
 # ── Data loading ──────────────────────────────────────────────────────────────
-@st.cache_data
+@st.cache_data(ttl=3600)
 def load_cot():
     cit    = pd.read_parquet(CIT_FILE)
     disagg = pd.read_parquet(DISAGG_FILE)
@@ -79,9 +78,9 @@ def load_cot():
     disagg["Date"] = pd.to_datetime(disagg["Date"])
     return cit, disagg
 
-@st.cache_data
-def load_rollex(path_str: str):
-    df = pd.read_parquet(path_str)[["rollex_px"]].reset_index()
+@st.cache_data(ttl=3600)
+def load_rollex(comm: str):
+    df = _rx_load(comm)[["rollex_px"]].reset_index()
     df.columns = ["Date", "Rollex"]
     df["Date"] = pd.to_datetime(df["Date"])
     return df
@@ -117,7 +116,7 @@ for tab, comm in zip(comm_tabs, COMM_CONFIG):
     is_cit       = cfg["cot"] == "cit"
     cot_raw      = cot_cit if is_cit else cot_disagg
     df_comm      = cot_raw[cot_raw["Commodity"] == comm].sort_values("Date").reset_index(drop=True)
-    rollex_daily = load_rollex(str(cfg["rollex"]))
+    rollex_daily = load_rollex(comm)
 
     with tab:
         if df_comm.empty:
@@ -338,23 +337,6 @@ for tab, comm in zip(comm_tabs, COMM_CONFIG):
             )
         fig2.add_vline(x=0, line_color="#cccccc", line_width=1)
 
-        # Pain/Pleasure labels — fresh positioning only
-        def _pain_label(row, cur_px):
-            long_add  = float(row["Long Add"])
-            short_add = float(row["Short Add"])
-            price     = float(row["Rollex"])
-            if long_add >= abs(short_add):
-                dominant_k = long_add
-                activity   = "Fresh Longs"
-                in_pain    = price > cur_px
-            else:
-                dominant_k = abs(short_add)
-                activity   = "Fresh Shorts"
-                in_pain    = price < cur_px
-            sentiment       = "PAIN" if in_pain else "PLEASURE"
-            sentiment_color = DARK_RED if in_pain else DARK_GREEN
-            return sentiment, sentiment_color, f"{dominant_k:.1f}k", activity
-
         recent5     = scatter_df.tail(5).reset_index(drop=True)
         week_labels = ["W-4", "W-3", "W-2", "W-1", "Latest"]
 
@@ -364,26 +346,39 @@ for tab, comm in zip(comm_tabs, COMM_CONFIG):
             cot_date  = row["Date"].strftime("%d/%m")
             is_latest = label == "Latest"
 
-            if pd.notna(window_px):
-                pain_text, pain_color, k_str, activity = _pain_label(row, window_px)
-                pain_html = (f"<b style='color:{pain_color}'>{pain_text}</b> "
-                             f"({k_str} {activity})")
-            else:
-                pain_html = ""
+            la_k = float(row["Long Add"])
+            ll_k = float(row["Long Liq"])
+            sa_k = float(row["Short Add"])
+            sc_k = float(row["Short Cover"])
+
+            tag_text = (
+                f"<b>{label}</b> {cot_date}<br>"
+                f"<span style='color:{DARK_GREEN}'>LA {la_k:+.1f}k</span>  "
+                f"<span style='color:{LIGHT_GREEN}'>LL {ll_k:+.1f}k</span><br>"
+                f"<span style='color:{DARK_RED}'>SA {sa_k:+.1f}k</span>  "
+                f"<span style='color:#d4756b'>SC {sc_k:+.1f}k</span>"
+            )
+
+            fig2.add_shape(
+                type="line",
+                x0=0, y0=rx_price, x1=_x_data_max, y1=rx_price,
+                line=dict(color="#bbbbbb", width=1, dash="dot"),
+                xref="x", yref="y", layer="below",
+            )
 
             fig2.add_annotation(
                 x=1.01, xref="paper",
                 y=rx_price, yref="y",
-                text=f"<b>{label}</b> {cot_date} — {pain_html}",
-                showarrow=False, xanchor="left",
+                text=tag_text,
+                showarrow=False, xanchor="left", align="left",
                 font=dict(size=8, color=NAVY if not is_latest else DARK_RED,
                           family="-apple-system,sans-serif"),
-                bgcolor="rgba(255,255,255,0.85)",
+                bgcolor="rgba(255,255,255,0.88)",
             )
 
         fig2.update_layout(
             height=600,
-            margin=dict(t=10, b=10, l=60, r=180),
+            margin=dict(t=10, b=10, l=60, r=220),
             legend=dict(orientation="h", y=1.04, x=0, font=dict(size=9)),
             xaxis=dict(showgrid=True, gridcolor="#f0f0f0", tickfont=dict(size=9),
                        title="k Contracts", zeroline=False, range=list(x_zoom)),
