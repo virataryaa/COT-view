@@ -43,9 +43,7 @@ def lbl(text):
             f"margin-bottom:8px'><span style='font-size:.78rem;font-weight:500;"
             f"letter-spacing:.07em;text-transform:uppercase;color:#dde4f0'>{text}</span></div>")
 
-# ── Rollex utils (Master Database) ───────────────────────────────────────────
-import sys as _sys
-_sys.path.append(r"C:\Users\virat.arya\ETG\SoftsDatabase - Documents\Database\Hardmine\Non Fundamental\Master Database\Rollex")
+# ── Rollex utils ─────────────────────────────────────────────────────────────
 from rollex_utils import load_rollex as _rx_load
 
 # ── Commodity config ──────────────────────────────────────────────────────────
