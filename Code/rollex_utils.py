@@ -7,8 +7,8 @@ import pandas as pd
 from pathlib import Path
 
 _DB          = Path(__file__).parent.parent / "Database"
-AVAILABLE    = ["KC", "RC", "CC", "LCC", "SB", "CT", "LSU", "OJ"]
-_ALIASES     = {"LRC": "RC"}
+AVAILABLE    = ["KC", "LRC", "CC", "LCC", "SB", "CT", "LSU", "OJ"]
+_ALIASES     = {}
 _STALE_HOURS = 24
 
 

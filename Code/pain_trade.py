@@ -344,17 +344,9 @@ for tab, comm in zip(comm_tabs, COMM_CONFIG):
             cot_date  = row["Date"].strftime("%d/%m")
             is_latest = label == "Latest"
 
-            la_k = float(row["Long Add"])
-            ll_k = float(row["Long Liq"])
-            sa_k = float(row["Short Add"])
-            sc_k = float(row["Short Cover"])
-
             tag_text = (
-                f"<b>{label}</b> {cot_date}<br>"
-                f"<span style='color:{DARK_GREEN}'>LA {la_k:+.1f}k</span>  "
-                f"<span style='color:{LIGHT_GREEN}'>LL {ll_k:+.1f}k</span><br>"
-                f"<span style='color:{DARK_RED}'>SA {sa_k:+.1f}k</span>  "
-                f"<span style='color:#d4756b'>SC {sc_k:+.1f}k</span>"
+                f"<b>{label}</b>"
+                f"<i style='font-size:7px;color:#888888'> {cot_date}</i>"
             )
 
             fig2.add_shape(
