@@ -391,8 +391,9 @@ for tab, comm in zip(comm_tabs, COMM_CONFIG):
             full_ana = df.dropna(subset=["Rollex"]).copy().reset_index(drop=True)
 
             # Vectorised rolling WAEP
+            # Long Add is positive, Short Add is negative (bars go left) — take abs
             la_pos  = full_ana["Long Add"].clip(lower=0)
-            sa_pos  = full_ana["Short Add"].clip(lower=0)
+            sa_pos  = full_ana["Short Add"].clip(upper=0).abs()
             rx      = full_ana["Rollex"]
 
             waep_long_s  = (la_pos * rx).rolling(WAEP_WINDOW, min_periods=1).sum() / \
