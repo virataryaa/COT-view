@@ -386,7 +386,7 @@ for tab, comm in zip(comm_tabs, COMM_CONFIG):
         # ── ADVANCED ANALYTICS ────────────────────────────────────────────────
         with st.expander("Advanced Analytics — WAEP · Pain Score · Max Pain", expanded=False):
 
-            WAEP_WINDOW = 52  # trailing weeks
+            WAEP_WINDOW = 4  # trailing weeks
 
             full_ana = df.dropna(subset=["Rollex"]).copy().reset_index(drop=True)
 
