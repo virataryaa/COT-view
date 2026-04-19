@@ -383,6 +383,160 @@ for tab, comm in zip(comm_tabs, COMM_CONFIG):
 
         st.markdown("<hr>", unsafe_allow_html=True)
 
+        # ── ADVANCED ANALYTICS ────────────────────────────────────────────────
+        with st.expander("Advanced Analytics — WAEP · Pain Score · Max Pain", expanded=False):
+
+            WAEP_WINDOW = 52  # trailing weeks
+
+            full_ana = df.dropna(subset=["Rollex"]).copy().reset_index(drop=True)
+
+            # Vectorised rolling WAEP
+            la_pos  = full_ana["Long Add"].clip(lower=0)
+            sa_pos  = full_ana["Short Add"].clip(lower=0)
+            rx      = full_ana["Rollex"]
+
+            waep_long_s  = (la_pos * rx).rolling(WAEP_WINDOW, min_periods=1).sum() / \
+                            la_pos.rolling(WAEP_WINDOW, min_periods=1).sum()
+            waep_short_s = (sa_pos * rx).rolling(WAEP_WINDOW, min_periods=1).sum() / \
+                            sa_pos.rolling(WAEP_WINDOW, min_periods=1).sum()
+
+            full_ana["waep_long"]   = waep_long_s
+            full_ana["waep_short"]  = waep_short_s
+            full_ana["pain_long"]   = full_ana["Rollex"] - full_ana["waep_long"]   # +ve = longs in profit, -ve = pain
+            full_ana["pain_short"]  = full_ana["waep_short"] - full_ana["Rollex"]  # +ve = shorts in profit, -ve = pain
+
+            # Current values — latest row within slider range
+            cur = full_ana[full_ana["Date"] <= pd.Timestamp(date_range[1])].iloc[-1]
+            cur_waep_long  = float(cur["waep_long"])
+            cur_waep_short = float(cur["waep_short"])
+            cur_pain_long  = float(cur["pain_long"])   # -ve → longs underwater
+            cur_pain_short = float(cur["pain_short"])  # -ve → shorts underwater
+
+            # Max pain level — price where aggregate pain is maximised
+            # weighted midpoint of the two WAEPs, weighted by their respective position sizes
+            la_total = la_pos.tail(WAEP_WINDOW).sum()
+            sa_total = sa_pos.tail(WAEP_WINDOW).sum()
+            denom    = la_total + sa_total
+            max_pain_px = (cur_waep_long * sa_total + cur_waep_short * la_total) / denom \
+                          if denom > 0 else np.nan
+
+            # Historical percentiles (full available history)
+            pct_long  = (full_ana["pain_long"]  < cur_pain_long).mean()  * 100
+            pct_short = (full_ana["pain_short"] < cur_pain_short).mean() * 100
+
+            # ── Metric row ────────────────────────────────────────────────────
+            m1, m2, m3, m4 = st.columns(4)
+            with m1:
+                st.metric(
+                    "WAEP — Fresh Longs",
+                    f"{cur_waep_long:.1f}",
+                    delta=f"{cur_pain_long:+.1f} vs current",
+                    delta_color="normal",
+                    help="Weighted avg entry price of spec longs over trailing 52 weeks"
+                )
+            with m2:
+                st.metric(
+                    "WAEP — Fresh Shorts",
+                    f"{cur_waep_short:.1f}",
+                    delta=f"{cur_pain_short:+.1f} vs current",
+                    delta_color="normal",
+                    help="Weighted avg entry price of spec shorts over trailing 52 weeks"
+                )
+            with m3:
+                st.metric(
+                    "Max Pain Level",
+                    f"{max_pain_px:.1f}" if pd.notna(max_pain_px) else "—",
+                    help="Price where both longs and shorts are simultaneously most underwater"
+                )
+            with m4:
+                st.metric("Current Rollex", f"{window_px:.1f}" if pd.notna(window_px) else "—")
+
+            st.markdown(
+                f"<div style='font-size:.78rem;color:#666;margin:.4rem 0 .8rem'>"
+                f"Long pain at <b>{pct_long:.0f}th</b> percentile historically &nbsp;·&nbsp; "
+                f"Short pain at <b>{pct_short:.0f}th</b> percentile historically"
+                f"</div>",
+                unsafe_allow_html=True,
+            )
+
+            # ── Pain timeline ─────────────────────────────────────────────────
+            st.markdown(lbl("Pain Score History — Distance of Current Price from WAEP Entry"),
+                        unsafe_allow_html=True)
+
+            fig_pain = go.Figure()
+            fig_pain.add_trace(go.Scatter(
+                x=full_ana["Date"], y=full_ana["pain_long"],
+                name="Long Pain  (+ve = profit, −ve = underwater)",
+                mode="lines", line=dict(color=DARK_GREEN, width=1.5),
+                fill="tozeroy", fillcolor="rgba(26,107,26,0.12)",
+            ))
+            fig_pain.add_trace(go.Scatter(
+                x=full_ana["Date"], y=full_ana["pain_short"],
+                name="Short Pain  (+ve = profit, −ve = underwater)",
+                mode="lines", line=dict(color=DARK_RED, width=1.5),
+                fill="tozeroy", fillcolor="rgba(139,0,0,0.12)",
+            ))
+            fig_pain.add_hline(y=0, line_color="#bbbbbb", line_width=1)
+
+            # Mark current pain levels
+            for val, color, label_ in [
+                (cur_pain_long,  DARK_GREEN, f"Long pain now {cur_pain_long:+.1f}"),
+                (cur_pain_short, DARK_RED,   f"Short pain now {cur_pain_short:+.1f}"),
+            ]:
+                fig_pain.add_hline(
+                    y=val, line_color=color, line_width=1, line_dash="dot",
+                    annotation_text=label_, annotation_font=dict(size=9, color=color),
+                    annotation_position="right",
+                )
+
+            fig_pain.update_layout(
+                height=300,
+                margin=dict(t=10, b=10, l=4, r=120),
+                legend=dict(orientation="h", y=1.08, font=dict(size=9)),
+                xaxis=dict(showgrid=False, tickfont=dict(size=9)),
+                yaxis=dict(title="Price Distance from WAEP", tickfont=dict(size=9),
+                           showgrid=True, gridcolor="#f0f0f0"),
+                **_D,
+            )
+            st.plotly_chart(fig_pain, use_container_width=True)
+
+            # ── WAEP lines on scatter context ─────────────────────────────────
+            st.markdown(lbl("WAEP Levels in Context — vs Scatter"), unsafe_allow_html=True)
+
+            fig_waep = go.Figure()
+            fig_waep.add_trace(_hbar_trace(scatter_df["Long Add"],    scatter_df["Rollex"], DARK_GREEN,  "Long Add"))
+            fig_waep.add_trace(_hbar_trace(scatter_df["Short Add"],   scatter_df["Rollex"], DARK_RED,    "Short Add"))
+            fig_waep.add_trace(_hbar_trace(scatter_df["Long Liq"],    scatter_df["Rollex"], LIGHT_GREEN, "Long Liq."))
+            fig_waep.add_trace(_hbar_trace(scatter_df["Short Cover"], scatter_df["Rollex"], LIGHT_RED,   "Short Cover"))
+
+            for px_val, color, label_ in [
+                (cur_waep_long,  DARK_GREEN,  f"WAEP Long {cur_waep_long:.1f}  "),
+                (cur_waep_short, DARK_RED,    f"WAEP Short {cur_waep_short:.1f}  "),
+                (max_pain_px,    AMBER,        f"Max Pain {max_pain_px:.1f}  ") if pd.notna(max_pain_px) else (None, None, None),
+                (window_px,      "#4a5568",    f"Current {window_px:.1f}  ") if pd.notna(window_px) else (None, None, None),
+            ]:
+                if px_val is None:
+                    continue
+                fig_waep.add_hline(
+                    y=px_val, line_color=color, line_width=1.5, line_dash="dash",
+                    annotation_text=label_,
+                    annotation_font=dict(size=9, color=color),
+                    annotation_position="left",
+                )
+
+            fig_waep.add_vline(x=0, line_color="#cccccc", line_width=1)
+            fig_waep.update_layout(
+                height=450,
+                margin=dict(t=10, b=10, l=60, r=60),
+                legend=dict(orientation="h", y=1.06, font=dict(size=9)),
+                xaxis=dict(showgrid=True, gridcolor="#f0f0f0", tickfont=dict(size=9),
+                           title="k Contracts", zeroline=False),
+                yaxis=dict(showgrid=True, gridcolor="#f0f0f0", tickfont=dict(size=9),
+                           title="Rollex Price"),
+                **_D,
+            )
+            st.plotly_chart(fig_waep, use_container_width=True)
+
 # ── Footer ────────────────────────────────────────────────────────────────────
 st.caption(
     "Pain Trade Monitor · KC / CC / SB / CT (CIT) · LRC / LCC (Disaggregated) · "
